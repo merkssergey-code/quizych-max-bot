@@ -1,0 +1,18 @@
+КВИЗЫЧ — MAX
+
+Файлы:
+- bot.py — код бота
+- questions.json — 8 категорий по 50 вопросов, без картинок
+- requirements.txt — зависимости
+
+Render:
+Start Command: uvicorn bot:app --host 0.0.0.0 --port $PORT
+
+Environment Variables:
+MAX_BOT_TOKEN=токен MAX-бота
+WEBHOOK_BASE_URL=https://имя-сервиса.onrender.com
+WEBHOOK_SECRET=секрет 5–256 символов (A-Z, a-z, 0-9, _ или -)
+
+Важно:
+WEBHOOK_BASE_URL указывается без /webhook. Бот сам использует путь /webhook.
+Изображений в проекте нет и код их не использует.

@@ -1,0 +1,2 @@
+maxapi[fastapi]>=1.2.2
+uvicorn[standard]>=0.29.0

@@ -726,37 +726,44 @@ games = {}
 # СТАРТ (нажатие кнопки "Начать" или команда /start)
 # =========================
 
-async def show_main_menu(chat_id, user_id, name):
-
-    get_player(user_id, name)
-
-    await bot.send_message(
-        chat_id=chat_id,
-        text=(
-            "🎮 Викторина\n\n"
-            "Проверь свои знания и набери максимум очков!\n\n"
-            "Выбирай категорию и начинай игру."
-        ),
-        attachments=[main_keyboard()],
-    )
+MAIN_MENU_TEXT = (
+    "🎮 Викторина\n\n"
+    "Проверь свои знания и набери максимум очков!\n\n"
+    "Выбирай категорию и начинай игру."
+)
 
 
 @dp.bot_started()
 async def bot_started(event: BotStarted):
 
-    from_user = await event.fetch_from_user()
-    name = from_user.first_name if from_user else ""
+    # У события "Начать" пользователь уже приходит вместе с апдейтом,
+    # в поле user (не нужно отдельно запрашивать fetch_from_user).
+    user_id = event.user.user_id
+    name = event.user.name or ""
 
-    await show_main_menu(event.chat_id, event.user_id, name)
+    get_player(user_id, name)
+
+    await bot.send_message(
+        chat_id=event.chat_id,
+        text=MAIN_MENU_TEXT,
+        attachments=[main_keyboard()],
+    )
 
 
 @dp.message_created(CommandStart())
 async def cmd_start(event: MessageCreated):
 
     from_user = await event.fetch_from_user()
-    name = from_user.first_name if from_user else ""
 
-    await show_main_menu(event.message.recipient.chat_id, event.from_user.user_id, name)
+    if from_user:
+        get_player(from_user.user_id, from_user.name or "")
+
+    # event.message.answer сам разбирается, кому и куда отвечать —
+    # не нужно вручную собирать chat_id/user_id.
+    await event.message.answer(
+        text=MAIN_MENU_TEXT,
+        attachments=[main_keyboard()],
+    )
 
 
 # =========================
@@ -800,7 +807,7 @@ async def callbacks(event: MessageCallback):
 
     payload = event.callback.payload
     user_id = event.callback.user.user_id
-    name = event.callback.user.first_name or ""
+    name = event.callback.user.name or ""
 
     # -------------------------
     # ИГРАТЬ

@@ -12,6 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from maxapi import Bot, Dispatcher
+from maxapi.enums.parse_mode import ParseMode
 from maxapi.filters.command import CommandStart
 from maxapi.types import BotStarted, CallbackButton, MessageCallback, MessageCreated
 from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
@@ -289,11 +290,16 @@ async def send_main(event, user_id=None, name=None):
         "Чем быстрее отвечаешь — тем больше очков.\n\n"
         "Выбирай категорию и начинай!",
         attachments=[main_keyboard()],
+        parse_mode=ParseMode.HTML,
     )
 
 
 async def send_categories(event):
-    await event.message.answer("<b>Выбери категорию:</b>", attachments=[categories_keyboard()])
+    await event.message.answer(
+        "<b>Выбери категорию:</b>",
+        attachments=[categories_keyboard()],
+        parse_mode=ParseMode.HTML,
+    )
 
 
 async def send_question(event, user_id):
@@ -311,14 +317,21 @@ async def send_question(event, user_id):
         f"{question['q']}\n\n"
         f"⭐ Очки: {game['score']}"
     )
-    await event.message.answer(text, attachments=[answers_keyboard(question)])
+    await event.message.answer(
+        text,
+        attachments=[answers_keyboard(question)],
+        parse_mode=ParseMode.HTML,
+    )
     game["asked_at"] = time.monotonic()
 
 
 async def show_stats(event, user_id):
     row = get_player(user_id)
     if not row:
-        await event.message.answer("Пока статистики нет.", attachments=[main_keyboard()])
+        await event.message.answer(
+            "Пока статистики нет.",
+            attachments=[main_keyboard()],
+        )
         return
     name, games_count, questions_count, correct, points, best_game, total_time = row
     accuracy = (correct / questions_count * 100) if questions_count else 0
@@ -333,7 +346,11 @@ async def show_stats(event, user_id):
         f"🏅 Лучший результат за игру: {best_game}\n"
         f"⚡ Среднее время ответа: {avg_time:.1f} сек"
     )
-    await event.message.answer(text, attachments=[main_keyboard()])
+    await event.message.answer(
+        text,
+        attachments=[main_keyboard()],
+        parse_mode=ParseMode.HTML,
+    )
 
 
 async def show_rating(event):
@@ -347,7 +364,11 @@ async def show_rating(event):
             medal = medals[i - 1] if i <= 3 else f"{i}."
             lines.append(f"{medal} <b>{name}</b> — {points} ⭐ ({correct}/{questions_count})")
         text = "\n".join(lines)
-    await event.message.answer(text, attachments=[main_keyboard()])
+    await event.message.answer(
+        text,
+        attachments=[main_keyboard()],
+        parse_mode=ParseMode.HTML,
+    )
 
 
 @dp.message_created(CommandStart())
@@ -472,7 +493,11 @@ async def callbacks(event: MessageCallback):
                 f"Последний ответ: {result}\n{speed} · {gained}"
             )
             games.pop(user_id, None)
-            await event.message.answer(final_text, attachments=[after_game_keyboard()])
+            await event.message.answer(
+                final_text,
+                attachments=[after_game_keyboard()],
+                parse_mode=ParseMode.HTML,
+            )
             return
 
         await event.message.answer(

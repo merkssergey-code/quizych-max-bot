@@ -739,7 +739,7 @@ async def bot_started(event: BotStarted):
     # У события "Начать" пользователь уже приходит вместе с апдейтом,
     # в поле user (не нужно отдельно запрашивать fetch_from_user).
     user_id = event.user.user_id
-    name = event.user.name or ""
+    name = event.user.first_name or ""
 
     get_player(user_id, name)
 
@@ -756,7 +756,7 @@ async def cmd_start(event: MessageCreated):
     from_user = await event.fetch_from_user()
 
     if from_user:
-        get_player(from_user.user_id, from_user.name or "")
+        get_player(from_user.user_id, from_user.first_name or "")
 
     # event.message.answer сам разбирается, кому и куда отвечать —
     # не нужно вручную собирать chat_id/user_id.
@@ -807,7 +807,7 @@ async def callbacks(event: MessageCallback):
 
     payload = event.callback.payload
     user_id = event.callback.user.user_id
-    name = event.callback.user.name or ""
+    name = event.callback.user.first_name or ""
 
     # -------------------------
     # ИГРАТЬ

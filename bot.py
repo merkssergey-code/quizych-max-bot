@@ -43,8 +43,12 @@ with QUESTIONS_PATH.open("r", encoding="utf-8") as f:
 QUESTIONS = DATA["categories"]
 CATEGORY_NAMES = DATA["category_names"]
 
+# "Смешанный вызов" — особая категория: объединение вопросов всех
+# остальных категорий, поэтому для неё не действует правило "ровно 50".
+MIXED_CATEGORY_KEY = "mixed"
+
 for category, pool in QUESTIONS.items():
-    if len(pool) != 50:
+    if category != MIXED_CATEGORY_KEY and len(pool) != 50:
         raise RuntimeError(f"Категория {category}: должно быть ровно 50 вопросов")
     for q in pool:
         if len(q.get("options", [])) != 4:
@@ -488,15 +492,30 @@ webhook = FastAPIMaxWebhook(dp=dp, bot=bot, secret=WEBHOOK_SECRET)
 async def lifespan(app: FastAPI):
     init_db()
     async with webhook.lifespan(app):
+        # Не переподписываемся на вебхук без необходимости при каждом
+        # перезапуске (сон/пробуждение на Render, каждый передеплой).
+        # Платформа может временно ограничивать частые повторные
+        # подписки — поэтому сначала проверяем текущее состояние и
+        # подписываемся заново только если адрес реально отличается.
         try:
-            await bot.subscribe_webhook(
-                url=WEBHOOK_URL,
-                secret=WEBHOOK_SECRET,
-                update_types=["message_created", "message_callback", "bot_started"],
-            )
-            logger.info("MAX webhook subscribed: %s", WEBHOOK_URL)
+            current = await bot.get_subscriptions()
+            existing_urls = [
+                getattr(s, "url", None) for s in getattr(current, "subscriptions", [])
+            ]
+
+            if WEBHOOK_URL not in existing_urls:
+                await bot.subscribe_webhook(
+                    url=WEBHOOK_URL,
+                    secret=WEBHOOK_SECRET,
+                    update_types=["message_created", "message_callback", "bot_started"],
+                )
+                logger.info("MAX webhook подписан: %s", WEBHOOK_URL)
+            else:
+                logger.info("MAX webhook уже был подписан: %s", WEBHOOK_URL)
+
         except Exception as exc:
-            logger.exception("Не удалось подписать webhook: %s", exc)
+            logger.exception("Не удалось проверить/подписать webhook: %s", exc)
+
         yield
 
 

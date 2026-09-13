@@ -999,9 +999,46 @@ async def callbacks(event: MessageCallback):
 # =========================
 # ЗАПУСК (webhook + healthcheck)
 # =========================
+# ВАЖНО: FastAPI не даёт одновременно использовать современный
+# "lifespan" (которым управляет сама библиотека maxapi) и старый
+# @app.on_event("startup") — при их совместном использовании код
+# внутри on_event попросту не выполняется. Поэтому объединяем всё
+# в один lifespan: сначала отрабатывает встроенный запуск maxapi,
+# затем — наша подписка на вебхук.
+
+from contextlib import asynccontextmanager
 
 webhook = FastAPIMaxWebhook(dp=dp, bot=bot, secret=WEBHOOK_SECRET)
-app = FastAPI(lifespan=webhook.lifespan)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    init_db()
+
+    async with webhook.lifespan(app):
+
+        desired_url = WEBHOOK_BASE_URL + WEBHOOK_PATH
+
+        # Не переустанавливаем вебхук без необходимости при каждом
+        # перезапуске (сон/пробуждение, передеплой) — чтобы не
+        # словить лишние ограничения от платформы. Ставим заново
+        # только если он ещё не совпадает с нужным адресом.
+        try:
+
+            current = await bot.get_subscriptions()
+            existing_urls = [s.url for s in getattr(current, "subscriptions", [])]
+
+            if desired_url not in existing_urls:
+                await bot.subscribe_webhook(url=desired_url, secret=WEBHOOK_SECRET)
+
+        except Exception as error:
+            print(f"Не удалось проверить/установить вебхук при старте: {error}")
+
+        yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -1010,29 +1047,6 @@ async def health():
 
 
 webhook.setup(app, path=WEBHOOK_PATH)
-
-
-@app.on_event("startup")
-async def on_startup():
-
-    init_db()
-
-    desired_url = WEBHOOK_BASE_URL + WEBHOOK_PATH
-
-    # Так же, как чинили для Telegram-бота: не переустанавливаем
-    # вебхук без необходимости при каждом перезапуске, чтобы не
-    # словить лишние ограничения от платформы. Ставим заново только
-    # если он ещё не совпадает с нужным адресом.
-    try:
-
-        current = await bot.get_subscriptions()
-        existing_urls = [s.url for s in getattr(current, "subscriptions", [])]
-
-        if desired_url not in existing_urls:
-            await bot.subscribe_webhook(url=desired_url, secret=WEBHOOK_SECRET)
-
-    except Exception as error:
-        print(f"Не удалось проверить/установить вебхук при старте: {error}")
 
 
 if __name__ == "__main__":
